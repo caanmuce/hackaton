@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zonas Críticas | moviliDATA</title>
     <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+
     <aside class="sidebar">
         <h2>🚗 moviliDATA</h2>
         <ul class="nav-links">
@@ -20,23 +22,112 @@
     <main class="main-content">
         <header>
             <h1>Zonas Críticas de Accidentalidad</h1>
-            <p style="color: var(--text-secondary)">Histórico y predicciones de riesgo (Módulo 1)</p>
+            <p style="color: var(--text-secondary)">Monitoreo predictivo de riesgo vial mediante IA (Módulo 1)</p>
         </header>
         
-        <section class="dashboard-grid">
-            <div class="card" style="grid-column: span 2;">
-                <h3>Resultados de Predicción de Riesgo (Conectado a la API)</h3>
-                <pre id="api-result" style="background: #0f172a; padding: 1rem; border-radius: 0.5rem; color: #10b981;">Cargando datos...</pre>
+        <section class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+            
+            <div class="card" style="grid-column: span 2; background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3 style="margin: 0; color: #1e293b;">🧠 Predicción de Riesgo en Tiempo Real</h3>
+                    <span style="background: #f0fdf4; color: #166534; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; border: 1px solid #bbf7d0;">
+                        Modelo Activo
+                    </span>
+                </div>
+
+                <div id="zonas-container" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <p style="color: #64748b;">Analizando variables climáticas y flujo vehicular...</p>
+                </div>
             </div>
+
+            <div class="card" style="background: #f8fafc; padding: 1.5rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; height: fit-content;">
+                <h4 style="margin-top: 0; color: #0f172a; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>⚙️</span> Métricas del Sistema
+                </h4>
+                <p style="font-size: 0.875rem; color: #64748b; line-height: 1.5;">
+                    Los porcentajes reflejan la probabilidad de ocurrencia de un incidente vial en las próximas 2 horas, calculado a partir del histórico de la Secretaría de Movilidad de Medellín.
+                </p>
+                <div style="margin-top: 1.5rem; padding: 0.75rem; background: #eff6ff; border-radius: 0.5rem; border-left: 4px solid #3b82f6;">
+                    <span style="font-size: 0.8rem; font-weight: 700; color: #1e40af; display: block; margin-bottom: 0.25rem;">Caché Optimizada</span>
+                    <span style="font-size: 0.85rem; color: #1e3a8a;">Las consultas se almacenan por 60 segundos para proteger el servidor de peticiones masivas.</span>
+                </div>
+            </div>
+
         </section>
     </main>
 
     <script type="module">
-        import { api } from './js/api.js';
-        
         document.addEventListener('DOMContentLoaded', async () => {
-            const result = await api.getZonasCriticas();
-            document.getElementById('api-result').textContent = JSON.stringify(result, null, 2);
+            // Dirección IP directa de tu Uvicorn apuntando a la ruta de predicción
+            const URL_API = 'http://127.0.0.1:8000/api/zonas/prediccion';
+            
+            try {
+                const response = await fetch(URL_API);
+                if (!response.ok) throw new Error(`Error en servidor: ${response.status}`);
+                
+                const data = await response.json();
+                const container = document.getElementById('zonas-container');
+                
+                if (container) {
+                    container.innerHTML = ''; // Limpiamos el texto de carga
+
+                    // Recorremos el arreglo 'zonas_criticas' tal cual viene de FastAPI
+                    data.zonas_criticas.forEach(item => {
+                        const porcentaje = Math.round(item.probabilidad_accidente * 100);
+                        
+                        // Determinamos el color según el nivel de riesgo
+                        let colorRiesgo = '#ef4444'; // Rojo (Riesgo Alto)
+                        let bgBadge = '#fef2f2';
+                        let textBadge = '#991b1b';
+                        let labelRiesgo = 'Riesgo Crítico';
+
+                        if (porcentaje < 70) {
+                            colorRiesgo = '#f97316'; // Naranja (Riesgo Moderado)
+                            bgBadge = '#fff7ed';
+                            textBadge = '#c2410c';
+                            labelRiesgo = 'Riesgo Moderado';
+                        }
+
+                        // Creamos la tarjeta estilizada para la comuna/zona
+                        const zonaCard = document.createElement('div');
+                        zonaCard.style.cssText = "background: #ffffff; border: 1px solid #e2e8f0; padding: 1.25rem; border-radius: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05);";
+                        
+                        zonaCard.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                                <div>
+                                    <h4 style="margin: 0 0 0.25rem 0; color: #0f172a; font-size: 1.15rem; font-weight: 600;">📍 ${item.zona}</h4>
+                                    <p style="margin: 0; font-size: 0.875rem; color: #64748b;"><strong>Factor:</strong> ${item.motivo}</p>
+                                </div>
+                                <span style="background: ${bgBadge}; color: ${textBadge}; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700;">
+                                    ${labelRiesgo}
+                                </span>
+                            </div>
+                            
+                            <div style="margin-top: 1rem;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;">
+                                    <span style="color: #475569; font-weight: 500;">Probabilidad de incidente</span>
+                                    <span style="color: ${colorRiesgo}; font-weight: 700;">${porcentaje}%</span>
+                                </div>
+                                <div style="width: 100%; background: #e2e8f0; height: 8px; border-radius: 999px; overflow: hidden;">
+                                    <div style="width: ${porcentaje}%; background: ${colorRiesgo}; height: 100%; border-radius: 999px; transition: width 0.6s ease-in-out;"></div>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(zonaCard);
+                    });
+                }
+
+            } catch (error) {
+                console.error("Error al cargar predicciones:", error);
+                const container = document.getElementById('zonas-container');
+                if (container) {
+                    container.innerHTML = `
+                        <div style="color: #991b1b; background: #fef2f2; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #ef4444;">
+                            <strong>⚠️ Error de Sincronización:</strong> No se pudo conectar con el modelo de predicción. Asegúrate de tener el backend corriendo en el puerto 8000.
+                        </div>
+                    `;
+                }
+            }
         });
     </script>
 </body>
